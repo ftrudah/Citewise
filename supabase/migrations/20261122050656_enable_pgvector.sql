@@ -1,0 +1,14 @@
+-- Enable pgvector, which stores the 1024-dim Voyage embeddings on chunks.
+--
+-- Installed in the `extensions` schema, not `public`: objects in `public` are exposed
+-- through Supabase's APIs, and an extension there trips Security Advisor lint 0014
+-- (extension_in_public).
+--   https://supabase.com/docs/guides/database/extensions/pgvector
+--   https://supabase.com/docs/guides/database/database-advisors
+--
+-- `if not exists` keeps this safe on a clone where vector was already enabled
+-- from the dashboard.
+--
+-- Later migrations should write the type as `extensions.vector(1024)`, the form the
+-- Supabase docs use, so they don't depend on search_path.
+create extension if not exists vector with schema extensions;
