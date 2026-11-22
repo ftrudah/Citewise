@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-Citewise answers questions about uploaded PDFs, cites the exact passage behind each claim, and scores itself with evals. It's a Python portfolio project. The package skeleton exists: `citewise/config.py` holds every tunable and loads `.env`, and the other modules (`db`, `extract`, `chunking`, `embeddings`, `ingest`, `retrieve`, `answer`, `pipeline`) are empty. `evals/`, `tests/` and `scripts/` are empty too (placeholders only). Their planned interfaces are in the PRD's project structure. Update this file as modules and tests land.
+Citewise answers questions about uploaded PDFs, cites the exact passage behind each claim, and scores itself with evals. It's a Python portfolio project. The package skeleton exists: `citewise/config.py` holds every tunable and loads `.env`, and the other modules (`db`, `extract`, `chunking`, `embeddings`, `ingest`, `retrieve`, `answer`, `pipeline`) are empty. `scripts/smoke_test.py` checks all three services, with unit tests in `tests/test_smoke_test.py`. `evals/` is still empty. Planned interfaces are in the PRD's project structure. Update this file as modules and tests land.
 
 - **Requirements:** `docs/PRD.md`. It's the source of truth for scope, settled decisions, boundaries and success criteria. Read it before planning work.
 - **Feature specs:** `docs/specs/<feature>.md`, one per feature (first: `supabase-mcp.md`).
-- **Setup progress:** `SETUP_NEXT_STEPS (1).md` (local only). Steps 1–5 are done; Steps 6 (smoke test) and 7 (commit) are open.
+- **Setup progress:** `SETUP_NEXT_STEPS (1).md` (local only). Steps 1–6 are done; Step 7 (commit) is open.
 - **Full plan:** https://claude.ai/artifact/GTWupi9QKBXvpG4Unib5tm
 
 ## How we work
@@ -43,8 +43,9 @@ Rules:
 
 ## Commands
 
-- Run tests: `pytest`
-- Run a single test: `pytest path/to/test_file.py::test_name`
+- Run tests: `pytest` (config in `pytest.ini`: puts the repo root on `sys.path`, collects `tests/`). Unit tests use fakes and make no network calls.
+- Run a single test: `pytest tests/test_smoke_test.py::test_name`
+- Check that the database, Voyage and Claude all answer: `python scripts/smoke_test.py`. It makes real API calls (a fraction of a cent), stops at the first failure, and never prints secrets.
 - Check MCP servers: `claude mcp list`
 
 There is no linter, formatter, or build step configured yet.

@@ -60,5 +60,14 @@ Schema changes still go through `supabase db push --remote`, not the MCP server.
 ## Testing
 
 ```bash
-pytest
+pytest                         # unit tests, no network
+python scripts/smoke_test.py   # checks the database, Voyage and Claude all answer (real calls)
+```
+
+Expected smoke test output:
+
+```
+✓ Database: select 1 ok, pgvector 0.8.2
+✓ Voyage: voyage-4 returned a 1024-dim vector
+✓ Claude: replied: ok
 ```
