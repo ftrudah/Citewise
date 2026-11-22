@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-Citewise answers questions about uploaded PDFs, cites the exact passage behind each claim, and scores itself with evals. It's a Python portfolio project. No application code exists yet: the repo holds `requirements.txt`, `.env` / `.env.example`, an empty `data/` directory, and the docs below. Update this file once real modules, an entry point, and tests exist.
+Citewise answers questions about uploaded PDFs, cites the exact passage behind each claim, and scores itself with evals. It's a Python portfolio project. The package skeleton exists: `citewise/config.py` holds every tunable and loads `.env`, and the other modules (`db`, `extract`, `chunking`, `embeddings`, `ingest`, `retrieve`, `answer`, `pipeline`) are empty. `evals/`, `tests/` and `scripts/` are empty too (placeholders only). Their planned interfaces are in the PRD's project structure. Update this file as modules and tests land.
 
 - **Requirements:** `docs/PRD.md`. It's the source of truth for scope, settled decisions, boundaries and success criteria. Read it before planning work.
 - **Feature specs:** `docs/specs/<feature>.md`, one per feature (first: `supabase-mcp.md`).
-- **Setup progress:** `SETUP_NEXT_STEPS (1).md`. Setup Steps 4–7 are still open.
+- **Setup progress:** `SETUP_NEXT_STEPS (1).md` (local only). Steps 1–5 are done; Steps 6 (smoke test) and 7 (commit) are open.
 - **Full plan:** https://claude.ai/artifact/GTWupi9QKBXvpG4Unib5tm
 
 ## How we work
@@ -51,5 +51,5 @@ There is no linter, formatter, or build step configured yet.
 
 ## Repo hygiene
 
-- `.gitignore` excludes `.env`, `.venv/`, `__pycache__/`, `*.pyc`, `.pytest_cache/`, and `.DS_Store`, and none of them are tracked. `.env` holds real secrets: never read, print or commit it.
-- `data/` (PDFs) is meant to be git-ignored but isn't listed in `.gitignore` yet; setup Step 4 adds it.
+- `.gitignore` excludes `.env`, `.venv/`, `__pycache__/`, `*.pyc`, `.pytest_cache/`, `.DS_Store` and `data/` (PDFs), and none of them are tracked. `.env` holds real secrets: never read, print or commit it.
+- `SETUP_NEXT_STEPS (1).md` stays local and isn't committed, by the owner's choice.
