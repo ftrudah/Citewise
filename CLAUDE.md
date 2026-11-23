@@ -8,7 +8,7 @@ Citewise answers questions about uploaded PDFs, cites the exact passage behind e
 
 - **Requirements:** `docs/PRD.md`. It's the source of truth for scope, settled decisions, boundaries and success criteria. Read it before planning work.
 - **Feature specs:** `docs/specs/<feature>.md`, one per feature (first: `supabase-mcp.md`).
-- **Setup progress:** `SETUP_NEXT_STEPS (1).md` (local only). Steps 1–6 are done; Step 7 (commit) is open.
+- **Setup progress:** `SETUP_NEXT_STEPS (1).md` (local only). Setup is complete (Steps 1–7, 2026-11-22). Next: `extract.py` and `chunking.py`.
 - **Full plan:** https://claude.ai/artifact/GTWupi9QKBXvpG4Unib5tm
 
 ## How we work

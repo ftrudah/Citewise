@@ -40,6 +40,7 @@ Rerankers, background workers, AWS and Terraform, file types other than PDF, cha
 | Citations | Per-request labels S1–S5; the model returns quotes, and code verifies each quote appears in the cited chunk |
 | Evals | Ragas (version pinned later), `claude-sonnet-5-5` judge at temperature 0, golden set in `evals/golden.json` |
 | PDF extraction | `pypdf`; swap only if the extracted text is poor |
+| Chunking | `langchain-text-splitters` (`RecursiveCharacterTextSplitter`), run once per page so a chunk never crosses a page break (approved 2026-11-22) |
 | Hosting | Vercel website (decided 2026-11-21). The deployed app only queries the database; it never runs schema SQL. |
 | Schema migrations | Supabase CLI: files in `supabase/migrations/`, applied with `supabase db push --remote` by the owner (to the live project) or by anyone who clones the repo (to their own project). Never applied by the app or by a Vercel build. |
 | Dev tooling | Supabase MCP server for Claude Code, for inspection and docs (see `docs/specs/supabase-mcp.md`) |
@@ -122,7 +123,7 @@ def chunk_pages(pages: list[Page]) -> list[Chunk]:
 ## Boundaries
 
 - **Always:** keep `.env.example` in sync with every variable read; keep `owner_id` on every table, filtered by `config.DEV_OWNER_ID` until auth exists; run `pytest` before committing; put schema changes in a `supabase/migrations/` file and query SQL in `retrieve.py`.
-- **Ask first:** adding any dependency beyond anthropic, voyageai, psycopg, pypdf, python-dotenv and pytest; schema changes; applying SQL to the database (through MCP or otherwise); starting the next setup or build step.
+- **Ask first:** adding any dependency beyond anthropic, voyageai, psycopg, pypdf, python-dotenv, pytest and langchain-text-splitters; schema changes; applying SQL to the database (through MCP or otherwise); starting the next setup or build step.
 - **Never:** read, print, echo or commit `.env` or any key; write code before the owner says go; call Voyage or Anthropic outside `embeddings.py` and `answer.py`; run DDL that isn't in a migration file; apply migrations from app code or a Vercel build step; reintroduce Tiger Data or Timescale.
 
 ## Success criteria (v1 definition of done)
@@ -150,7 +151,7 @@ def chunk_pages(pages: list[Page]) -> list[Chunk]:
    - **UI:** Vercel runs serverless functions, so a long-running Streamlit server probably doesn't fit. A FastAPI app (API plus served HTML) probably does.
    - **Database connections:** serverless functions usually connect through Supabase's transaction pooler, and psycopg may need prepared statements turned off for that.
    - **Limits:** function request-body size and timeouts may cap PDF upload size and ingestion time.
-2. **Dependency allowlist vs `requirements.txt`.** `requirements.txt` already pins `langchain-text-splitters`, `aiohttp`, `aiolimiter` and `tenacity`, but the setup rules allow only six packages. Can the code use the ones already pinned?
+2. **Dependency allowlist vs `requirements.txt`.** `langchain-text-splitters` is approved for chunking (2026-11-22). Still undecided: `aiohttp`, `aiolimiter` and `tenacity`, which are pinned but not on the allowlist.
 3. Auth approach (Supabase Auth + RLS, or your own login) and Ragas embeddings for Voyage: decided later, per the plan.
 
 Resolved 2026-11-21: schema migrations live in `supabase/migrations/` and are applied with the Supabase CLI (Option B in the MCP spec). This replaces the setup plan's `sql/` directory for schema files.
