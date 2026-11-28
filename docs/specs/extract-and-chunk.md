@@ -1,6 +1,6 @@
 # Spec: PDF extraction and page-aware chunking
 
-Status: draft for review · Last updated: 2026-11-22 · Parent: `docs/PRD.md` (first "After setup" task)
+Status: approved 2026-11-27 · Last updated: 2026-11-27 · Parent: `docs/PRD.md` (first "After setup" task)
 
 ## Objective
 
@@ -36,11 +36,11 @@ class Page:
     text: str     # "" when the page has no extractable text
 
 
-def extract_pages(path: str | Path) -> list[Page]:
+def extract_pages(path: str | Path, reader_factory=PdfReader) -> list[Page]:
     """One Page per PDF page, in order. Never skips a page."""
 ```
 
-- Uses `pypdf.PdfReader(path)` and `page.extract_text()` (checked against the installed 7.1.0 signatures).
+- Uses `reader_factory(path)`, which defaults to `pypdf.PdfReader`, and calls `page.extract_text(extraction_mode="plain")` on each page (checked against the installed 7.1.0 signatures). Tests pass a fake factory: any object with `.pages` whose pages have `.extract_text(**kwargs) -> str` works.
 - Light normalization only: `\r\n` becomes `\n`, and leading and trailing whitespace is stripped from each page. Paragraph breaks are kept.
 - A page whose text is empty after stripping keeps `text=""`. Reporting it is the caller's job (see `empty_pages`).
 
@@ -104,13 +104,13 @@ Small tests only, with no network and no PDFs on disk:
   - `chunk_index` is continuous across pages;
   - paragraph breaks are preferred over mid-paragraph breaks;
   - empty pages produce no chunks.
-- **Manual review:** run `show_chunks.py` on a real PDF and read the output together.
+- **Manual review:** run `show_chunks.py` on `data/docent_handbook_13-14.pdf` and read the output together. That PDF has 30 pages, pages 2 and 29 have no text, and some pages repeat headers (page 3 begins "Page 3 Page 3"). So the review checks the empty-page report and shows how much header noise ends up in chunks.
 
 ## Boundaries
 
 - **Always:** take every tunable from `config.py`; keep `extract.py` and `chunking.py` free of I/O beyond reading the PDF and loading the tokenizer.
 - **Ask first:** changing the extractor, adding header and footer removal, or changing chunk sizes away from config.
-- **Never:** call the Voyage or Anthropic APIs or touch the database here; commit PDFs (`data/` is git-ignored).
+- **Never:** call the Voyage or Anthropic APIs or touch the database here; commit PDFs (`data/` is git-ignored); use `data/docent_handbook_13-14.pdf` for golden questions, eval baselines, committed fixtures or README examples (its license is unknown, so it's for local testing only).
 
 ## Success criteria
 
@@ -126,6 +126,10 @@ Small tests only, with no network and no PDFs on disk:
 | Repeated headers, footers and page numbers end up inside chunks | Out of scope for v1. Note it in review; it may matter for keyword search later. |
 | The tokenizer download fails offline | It's needed only on first run, then cached in `~/.cache/huggingface`. Tests never download it. |
 
-## Open questions
+## Resolved questions
 
-1. **Which PDF for the review?** It should be openly licensed, because the golden set will reuse it (the plan calls for 3–4 such PDFs). Do you have one in mind, or should I suggest some?
+1. **Which PDF for the review?** Resolved 2026-11-27: `data/docent_handbook_13-14.pdf` (UMKC School of Medicine "Fundamentals of Medicine Handbook"). The PDF states no license, so it's for **local testing only**.
+
+## Follow-ups (outside this spec)
+
+- Find 3–4 openly licensed PDFs (CC BY or public domain) before the golden set work starts, and record each one's source and license.

@@ -1,30 +1,34 @@
-# Todo: Supabase MCP server
+# Todo: PDF extraction and page-aware chunking
 
-Plan: `tasks/plan.md` · Spec: `docs/specs/supabase-mcp.md`
+Plan: `tasks/plan.md` · Spec: `docs/specs/extract-and-chunk.md` · Previous: `tasks/archive/`
 
-- [x] **T1: write `.mcp.json` (Claude)**
-  - Run: `claude mcp add --scope project --transport http supabase "https://mcp.supabase.com/mcp?project_ref=cdmbsouaixedfmaercpp&features=database,docs,debugging,development"`
-  - Acceptance: `.mcp.json` exists at the repo root with only that one HTTP server entry.
-  - Verify: `claude mcp get supabase` shows project scope, http and that URL.
-  - Files: `.mcp.json`
+- [x] **T1: `citewise/extract.py`, test-first (Claude)**
+  - Write `tests/test_extract.py` first with a fake reader of three pages: text, empty, and text with `\r\n`. Check: three `Page`s numbered 1–3, the empty page kept as `""`, `\r\n` → `\n`, each page stripped, and `empty_pages(...) == [2]`. Run it and see it fail.
+  - Then write `Page`, `extract_pages(path, reader_factory=...)` and `empty_pages(pages)` as the spec describes. The reader parameter defaults to `pypdf.PdfReader`.
+  - Verify: `pytest tests/test_extract.py` passes with no network.
+  - Files: `tests/test_extract.py`, `citewise/extract.py`
 
-- [x] **T2: approve and log in (owner)**
-  - Exit this session, then run `claude --continue` in `~/Citewise`. Accept the prompt to approve the project server `supabase`.
-  - Run `/mcp`, choose **supabase** → **Authenticate**, and pick the org that owns `cdmbsouaixedfmaercpp` in the browser.
-  - Acceptance and verify: `claude mcp list` shows `supabase … ✔ Connected`.
+- [ ] **T2: `citewise/chunking.py`, test-first (Claude)**
+  - First fix the spec line that says the tokenizer loads from `voyageai/voyage-4`. It's `MongoDB/voyage-4`, derived from `config.EMBEDDING_MODEL`.
+  - Write `tests/test_chunking.py` first, using a 1 word = 1 token counter: short page → one chunk; long page → several chunks, each ≤ `chunk_tokens`; neighbors on one page share overlap text; no chunk spans two pages; `chunk_index` continuous across pages; paragraph breaks preferred; empty pages give no chunks; the tokenizer repo name matches `voyageai.util.HF_ORG`. Run them and see them fail.
+  - Then write `Chunk` and `chunk_pages(...)`: one `RecursiveCharacterTextSplitter` run per page, and a lazily loaded, module-cached Voyage tokenizer as the default `count_tokens`.
+  - Verify: `pytest tests/test_chunking.py` passes with no network, and the full `pytest` still passes.
+  - Files: `docs/specs/extract-and-chunk.md` (one line), `tests/test_chunking.py`, `citewise/chunking.py`
+
+- [ ] **T3: `scripts/show_chunks.py` (Claude)**
+  - Takes a PDF path and an optional `--head N`. Prints page count, empty pages, chunk count, min/avg/max tokens, then each chunk as `[chunk N · page P · T tokens]` followed by its text.
+  - Verify: `python scripts/show_chunks.py data/docent_handbook_13-14.pdf --head 5` reports 30 pages, empty pages `[2, 29]`, max tokens ≤ 500, and finishes in a few seconds.
+  - Files: `scripts/show_chunks.py`
+
+- [ ] **T4: chunk review (owner)**
+  - Run `python scripts/show_chunks.py data/docent_handbook_13-14.pdf` and read the output together. Look for: line-level splits where paragraphs should be, header and table-of-contents noise, and chunks that cut mid-sentence.
+  - Acceptance: you accept the quality, or name a change. Any change to the extractor, header removal or chunk sizes is "Ask first" and gets its own approval.
   - Files: none
 
-- [x] **T3: verify tools and scope (Claude, each call approved by you)**
-  - Compare the loaded `mcp__supabase__*` tools with the spec: database, docs, debugging and development present; account, Edge Function, storage, branching and notebook tools absent.
-  - Approved calls: `list_extensions` (expect `vector` 0.8.2 in `extensions`), `get_advisors` with type security (expect the two `rls_auto_enable` WARNs), and `list_migrations` (expect `20261122050656`).
-  - If the group names are wrong: fix the URL in `.mcp.json`, restart, and recheck.
-  - Files: `.mcp.json` (only if needed)
+- [ ] **T5: docs (Claude)**
+  - CLAUDE.md project state: `extract.py` and `chunking.py` done, the new tests, the `show_chunks.py` command, and next step `ingest.py`. Spec: tick the success criteria and note anything from the review.
+  - Files: `CLAUDE.md`, `docs/specs/extract-and-chunk.md`
 
-- [x] **T4: docs (Claude)**
-  - README: add an "MCP setup (optional, for Claude Code)" section with the T2 steps. CLAUDE.md: change "Not connected yet" to connected, and add the `features` value we confirmed. Spec: tick the tasks and record the confirmed group names.
-  - Verify: the README alone is enough to reconnect from a fresh clone.
-  - Files: `README.md`, `CLAUDE.md`, `docs/specs/supabase-mcp.md`
-
-- [x] **T5: commit (Claude, after you say go)**
-  - Stage `.mcp.json`, `supabase/` (config, migrations, `.gitignore`), `docs/`, `tasks/`, `README.md`, `CLAUDE.md` and `.env.example`. Confirm `.env` and `supabase/.temp/` aren't staged. Show you the list first.
+- [ ] **T6: commit (Claude, after you say go)**
+  - Stage the code, tests, script, `docs/`, `tasks/` (including `tasks/archive/`) and `CLAUDE.md`. Confirm no PDFs, `.env` or `__pycache__` are staged. Show you the list first.
   - Files: none

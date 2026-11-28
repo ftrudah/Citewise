@@ -1,45 +1,48 @@
-# Plan: Supabase MCP server
+# Plan: PDF extraction and page-aware chunking
 
-Spec: `docs/specs/supabase-mcp.md` (approved 2026-11-21). Task list: `tasks/todo.md`.
+Spec: `docs/specs/extract-and-chunk.md` (approved 2026-11-27). Task list: `tasks/todo.md`. Previous plans are in `tasks/archive/`.
 
-## Starting point (verified 2026-11-21)
+## Starting point (verified 2026-11-27)
 
-- The Supabase CLI is set up and linked to `cdmbsouaixedfmaercpp` ("Citewise").
-- `DATABASE_URL` connects (pooler, session mode).
-- pgvector 0.8.2 is installed in `extensions` through migration `20261122050656_enable_pgvector`.
-- There's no `.mcp.json` yet, and no Supabase entry in any MCP scope.
-- No setting auto-approves project MCP servers (`enableAllProjectMcpServers` isn't set), and no allow rule covers `mcp__supabase__*`. Every call will prompt.
-- Known advisor findings before connecting: two WARNs on `public.rls_auto_enable()` (lints 0028 and 0029). The MCP `get_advisors` call in Task 3 should report the same two.
+- `citewise/extract.py` and `citewise/chunking.py` are empty files. `tests/` has only `test_smoke_test.py`.
+- `config.py` already has `CHUNK_TOKENS = 500`, `CHUNK_OVERLAP = 50` and `EMBEDDING_MODEL = "voyage-4"`.
+- `pypdf` 7.1.0, `langchain-text-splitters` 1.1.3 and `tokenizers` 0.23.3 are pinned in `requirements.txt` and import cleanly in `.venv`.
+- The tokenizer is already cached locally as `models--MongoDB--voyage-4`.
+- The review PDF is `data/docent_handbook_13-14.pdf`: 30 pages, pages 2 and 29 have no text. It's git-ignored and for local testing only.
+- **Spec correction needed:** the spec says the tokenizer loads from `voyageai/voyage-4`. The installed `voyageai` 0.6.0 client actually loads `f"{HF_ORG}/{model}"` with `HF_ORG = "MongoDB"` (`voyageai/util.py:16`, `_base.py:226`). The code should derive the repo the same way (`MongoDB/<EMBEDDING_MODEL>`). T2 fixes the spec line before writing the code.
 
 ## Components and order
 
 ```
-T1 write .mcp.json ──> T2 owner: restart, approve, log in ──> T3 verify tools + scope ──> T4 docs ──> T5 commit
+T1 extract.py (test-first) ──> T2 chunking.py (test-first) ──> T3 show_chunks.py ──> T4 owner review ──> T5 docs ──> T6 commit
 ```
 
-The tasks run in order. Each depends on the one before, and nothing can run in parallel. T2 is yours alone: OAuth runs in your browser, and a new MCP server only loads when a Claude Code session starts.
+The tasks run in order. `chunking.py` imports `Page` from `extract.py`, and the script uses both. T4 is yours: you read the printed chunks and decide whether they're good enough.
+
+Each code task follows red → green → refactor: write the tests from the spec, see them fail, then write the code until they pass.
 
 ## Verification checkpoints
 
 | After | Check | Pass |
 |---|---|---|
-| T1 | `claude mcp get supabase` | scope: project; type: http; URL has `project_ref=cdmbsouaixedfmaercpp` |
-| T2 | `claude mcp list` | `supabase: … (HTTP) - ✔ Connected` |
-| T3 | The tool list in a new session, plus approved `list_extensions` and `get_advisors` calls | Database, docs, debugging and development tools present; no account, Edge Function, storage, branching or notebook tools; `vector` 0.8.2 in `extensions`; advisors match the CLI |
-| T4 | A fresh reader can follow the README alone | — |
-| T5 | `git status`, staged files | `.env` not staged; no secrets in the diff |
+| T1 | `pytest tests/test_extract.py` | All pass, no network, no PDF on disk |
+| T2 | `pytest tests/test_chunking.py` and then the full `pytest` | All pass, no network; the smoke-test tests still pass |
+| T3 | `python scripts/show_chunks.py data/docent_handbook_13-14.pdf --head 5` | Prints 30 pages, empty pages `[2, 29]`, a chunk count, min/avg/max tokens, and chunks tagged `[chunk N · page P · T tokens]` with max ≤ 500 |
+| T4 | Owner reads the full output | Accepted, or a specific change requested (that change goes through "Ask first") |
+| T5 | CLAUDE.md and spec are current | Project state names the new modules, tests and command; spec success criteria ticked |
+| T6 | `git status`, staged files | No PDFs, `.env` or `__pycache__` staged |
 
 ## Risks and mitigations
 
 | Risk | Mitigation |
 |---|---|
-| The `features` group names `debugging` and `development` are wrong (UNVERIFIED; the docs only show `database,docs`) | T3 compares the tool list against what we expect. If the server rejects the URL or a group is missing, fix the name. If the right name can't be found, drop `features` and rely on `project_ref` plus per-call approval. |
-| OAuth picks the wrong organization | In T2, choose the org that owns `cdmbsouaixedfmaercpp`. `project_ref` also makes any other project unreachable. |
-| Claude uses `apply_migration` or DDL through `execute_sql` | CLAUDE.md and spec rules, plus per-call approval: deny any such call. |
-| Prompt injection from chunk text returned by queries | Treat results as data (spec rule 4). There are no chunks yet. |
-| This conversation is lost when you restart for T2 | Run `claude --continue` (or `/resume`) in the repo, so the same conversation comes back with the new server loaded. |
-| `.mcp.json` leaks something | It holds only the URL. The project ref is already public in the API URL, and the OAuth token is stored outside the repo. T5 checks the diff. |
+| pypdf plain mode ends each visual line with `\n` and rarely emits `\n\n`, so chunks split on lines, not paragraphs | T4 will show it. If it's bad, propose `extraction_mode="layout"` or rejoining wrapped lines, and ask before changing. |
+| Repeated headers ("Page 3 Page 3") and the table of contents dots end up in chunks | Out of scope for v1 (spec). Note how much noise there is in T4 for later keyword-search work. |
+| The splitter calls `length_function` many times, and the real tokenizer is slower than word counting | The tokenizer loads once and is cached in the module. Check that the 30-page PDF chunks in a few seconds in T3. |
+| A fake reader doesn't match `pypdf`'s real API, so tests pass but real use fails | The injectable reader only uses `.pages` and `page.extract_text()`, which match pypdf 7.1.0. T3 runs the real reader on a real PDF. |
+| Tests accidentally download the tokenizer | Tests always pass their own `count_tokens`. The module loads the tokenizer lazily, not on import. |
+| Wrong tokenizer repo name | Use `MongoDB/<EMBEDDING_MODEL>`, as the client does. A T2 unit test checks that the repo name equals `f"{voyageai.util.HF_ORG}/{config.EMBEDDING_MODEL}"`, so a client upgrade that moves the repo fails the test. No network needed. |
 
 ## Out of scope
 
-The fix for the `rls_auto_enable` advisor warnings (its own migration, later), the tables migration, and any app code.
+Hashing, embedding, database writes (`ingest.py`, the next spec), header and footer removal, golden questions, and any other PDF.
